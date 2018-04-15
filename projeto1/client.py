@@ -18,7 +18,7 @@ def console(s,host,port):
         data = input("entre com um comando: ");
         comando = data.split(' ');
         if(comando[0] in Comandos):
-            comando = comando[1].split(',');
+            chave_valor = comando[1].split(',');
             chave = comando[0][1:];
             valor = comando[1][:-1];
             s.sendto(data.encode(), (host, port));

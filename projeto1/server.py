@@ -67,7 +67,6 @@ def main():
     _thread.start_new_thread(store_and_process,());
     while(True):
         command, addr = s.recvfrom(12345);
-        x = 2;
         received_commands.put(command.decode());
 
 if __name__ == "__main__":
