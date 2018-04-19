@@ -20,7 +20,7 @@ def store_and_log():
         if (received_commands.qsize() > 0):
             command = received_commands.get();
             print(str(command[0][0]) + ' ' + str(command[0][1]) + ' ' + command[1]);
-            store(str(command[0][0]) + ' ' + str(command[0][1]) + ' ' + command[1]);
+            store(str(command[1]));
             processing_commands.put(command);
 
 
@@ -37,7 +37,6 @@ def process_commands(s):
 
 def process(data,s):
     (client_addr,command) = data;
-    print('Comando ', data, ' processado com sucesso');
     command = command.split(' ');
     operation = command[0];
     chave_valor = command[1].split(',');
@@ -52,7 +51,8 @@ def process(data,s):
         response = read(chave,valor);
     if(operation == 'DELETE'):
         response = delete(chave,valor);
-    s.sendto(response.encode(),client_addr)
+    if(client_addr[0] != '-1'):
+        s.sendto(response.encode(),client_addr);
 
 def update(chave,valor):
     if(chave in dados):
@@ -111,13 +111,18 @@ def read_port():
     port = int(config_file.read().split(':')[1]);
     config_file.close;
     return port;
-
+def reexecute_log(s):
+    log_file = open('data','r');
+    log = log_file.read().split('\n');
+    for command in log[:-1]:
+        process((('-1',-1),command),s);
 def main():
     s = config_server();
+    reexecute_log(s);
     _thread.start_new_thread(store_and_log,());
     _thread.start_new_thread(process_commands,(s,));
     while(True):
-        command, addr = s.recvfrom(12345);
+        command, addr = s.recvfrom(read_port());
         print (addr)
         received_commands.put((addr,command.decode()));
 
