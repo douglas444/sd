@@ -33,7 +33,7 @@ def main():
     _thread.start_new_thread(console,(s,host,port));
     while True:
         result, addr = s.recvfrom(4096);
-        print(addr, ' ', result);
+        print(addr, ' ', result.decode());
 
 if __name__ == "__main__":
     main();
