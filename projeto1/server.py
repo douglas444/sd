@@ -2,11 +2,54 @@ import multiprocessing;
 import socket;
 import _thread;
 import queue;
+from enum import Enum;
+from sys import getsizeof;
 
-received_commands = multiprocessing.Queue();
-processing_commands = multiprocessing.Queue();
+KEY_MAX_SIZE = 28;
+DATA_MAX_SIZE = 3000;
 
-dados = {}
+commands = multiprocessing.Queue();
+commits = multiprocessing.Queue();
+
+hashmap = {};
+
+class RepositoryError(Exception):
+    pass
+
+def create(key, data):
+    if key not in hashmap:
+        hashmap[key] = data;
+    else:
+        raise RepositoryError('Key already in use');
+
+def read(key):
+    try: 
+        return hashmap[key];
+    except KeyError:
+        raise RepositoryError('Theres no data associated to this key');
+
+def update(key, data):
+    if(key in hashmap):
+        hashmap[key] = data;
+    else:
+        raise RepositoryError('Theres no data associated to this key');
+
+def delete(key):
+    try: 
+        del(hashmap[key]);
+    except KeyError:
+        raise RepositoryError('Theres no data associated to this key');
+
+def log_add(s):
+    log = open('log', 'a');
+    log.write(s + '\n');
+    log.close();
+
+def log_reexecute():
+    log = open('log','r');
+    for s in log:
+        commit = commit_factory(s);
+        process(commit);
 
 def config_server():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM);
@@ -15,116 +58,130 @@ def config_server():
     s.bind((host,port));
     return s
 
-def store_and_log():
-    while True:
-        if (received_commands.qsize() > 0):
-            command = received_commands.get();
-            print(str(command[0][0]) + ' ' + str(command[0][1]) + ' ' + command[1]);
-            store(str(command[1]));
-            processing_commands.put(command);
-
-
-def store(command):
-    storage_file = open('data', 'a');
-    storage_file.write(command + '\n');
-    storage_file.close();
-
-def process_commands(s):
-    while (True):
-        if(processing_commands.qsize() > 0):
-            command = processing_commands.get();
-            process(command,s);
-
-def process(data,s):
-    (client_addr,command) = data;
-    command = command.split(' ');
-    operation = command[0];
-    chave_valor = command[1].split(',');
-    chave = chave_valor[0][1:];
-    valor = chave_valor[1][:-1];
-    response = '';
-    if(operation == 'UPDATE'):
-        response = update(chave,valor);
-    if(operation == 'CREATE'):
-        response = create(chave,valor);
-    if(operation == 'READ'):
-        response = read(chave,valor);
-    if(operation == 'DELETE'):
-        response = delete(chave,valor);
-    if(client_addr[0] != '-1'):
-        s.sendto(response.encode(),client_addr);
-
-def update(chave,valor):
-    if(chave in dados):
-        dados[chave] = valor;
-        return 'valor alterado';
-    else:
-        return 'chave nao encontrada';
-
-def create(chave,valor):
-    if(chave not in dados):
-        dados[chave] = valor;
-        return 'valor criado';
-    else:
-        return 'chave ja esta sendo utilizada';
-
-def read(chave,valor):
-    if(chave in dados):
-        return dados[chave];
-    else:
-        return 'chave nao encontrada'
-
-def delete(chave,valor):
-    if(chave in dados):
-        del(dados[chave]);
-        return 'deletado com sucesso'
-    else:
-        return 'chave nao encontrada'
-
-def unstore(command):
-    storage_file = open('data', 'r+');
-    file_content = storage_file.read();
-    storage_file.close();
-
-    stored_commands = file_content.split('\n');
-    stored_commands.remove(command);
-    file_content = '\n'.join(stored_commands);
-
-    storage_file = open('data','r+');
-    storage_file.write(file_content);
-    storage_file.close();
-
-def get_stored_command():
-    storage_file = open('data','r+');
-    file_content = storage_file.read();
-    storage_file.close();
-
-    stored_commands = file_content.split('\n');
-
-    if(file_content and len(stored_commands) > 0):
-        return stored_commands[0];
-    else:
-        return None;
 
 def read_port():
-    config_file = open('config-servidor.txt','r');
+    config_file = open('server_config','r');
     port = int(config_file.read().split(':')[1]);
     config_file.close;
     return port;
-def reexecute_log(s):
-    log_file = open('data','r');
-    log = log_file.read().split('\n');
-    for command in log[:-1]:
-        process((('-1',-1),command),s);
-def main():
-    s = config_server();
-    reexecute_log(s);
-    _thread.start_new_thread(store_and_log,());
-    _thread.start_new_thread(process_commands,(s,));
-    while(True):
-        command, addr = s.recvfrom(read_port());
-        print (addr)
-        received_commands.put((addr,command.decode()));
 
-if __name__ == "__main__":
-    main();
+class Commit(object):
+    def __init__(self, operation, key, data):
+        self.operation = operation;
+        self.key = key;
+        self.data = data;
+
+def commit_factory(s):
+
+    operation = None;
+    key = None;
+    data = None;
+
+    #Extrai e valida "OPERATION"
+    if s.replace(' ', '').find('CREATE') == 0:
+        operation = 'CREATE';
+    elif s.replace(' ', '').find('READ') == 0:
+        operation = 'READ';
+    elif s.replace(' ', '').find('UPDATE') == 0:
+        operation = 'UPDATE';
+    elif s.replace(' ', '').find('DELETE') == 0:
+        operation = 'DELETE';
+    else:
+        raise ValueError('Invalid operation');
+
+    #Extrai e valida "KEY"
+    data_tuple = s.split(operation)[1];
+    if (operation == 'CREATE' or operation == 'UPDATE'):
+        if data_tuple.find('"') < 0 or data_tuple.replace('"', '', 1).find('"') < 0:
+            raise ValueError('Invalid key or data format');
+        key = data_tuple.split('"', 1)[0];
+    else:
+        key = data_tuple;
+    if not key:
+        raise ValueError('Invalid key or data format');
+    try: 
+        key = int(key);
+    except ValueError:
+        raise ValueError('Invalid key or data format');
+    if getsizeof(key) > KEY_MAX_SIZE:
+        raise ValueError('Key size is too large');
+
+    #Extrai e valida "DATA"
+    if (operation == 'CREATE' or operation == 'UPDATE'):
+        data_begin = data_tuple.find('"') + 1;
+        data_end = data_tuple.rfind('"');
+        data = data_tuple[data_begin:data_end];
+        if not data:
+            raise ValueError('Data cant be empty');
+        if getsizeof(data) > DATA_MAX_SIZE:
+            raise ValueError('Data size is too large');
+
+    #Gera e retorna objeto do tipo Commit
+    return Commit(operation, key, data);
+
+def process_commands(server):
+    while True:
+        if (commands.qsize() > 0):
+            command = commands.get();
+            try:
+                commit = commit_factory(command[0]);
+                log_add(command[0]);
+                commits.put((commit, command[1]));
+            except ValueError as e:
+                response = str(e);
+                server.sendto(response.encode(), command[1]);
+
+def process_commits(server):
+    while (True):
+        if(commits.qsize() > 0):
+            commit = commits.get();
+            response = process(commit[0]);
+            server.sendto(response.encode(), commit[1]);
+
+def process(commit):
+
+    response = 'Commit successfully executed'
+
+    if commit.operation == 'CREATE':
+        try:
+            create(commit.key, commit.data);
+        except RepositoryError as e:
+            response = str(e);
+
+    elif commit.operation == 'READ':
+        try:
+            return read(commit.key);
+        except RepositoryError as e:
+            response = str(e);
+
+    elif commit.operation == 'UPDATE':
+        try:
+            update(commit.key, commit.data);
+        except RepositoryError as e:
+            response = str(e);
+
+    elif commit.operation == 'DELETE':
+        try:
+            delete(commit.key);
+        except RepositoryError as e:
+            response = str(e);
+
+    else:
+        raise Exception('Invalid commit object found during execution');
+
+    return response;
+
+def main():
+
+    server = config_server();
+    log_reexecute();
+
+    _thread.start_new_thread(process_commands, (server,));
+    _thread.start_new_thread(process_commits, (server,));
+
+    while(True):
+        value, addr = server.recvfrom(read_port());
+        commands.put((value.decode(), addr));
+        print('Command received from', addr);
+
+main();
