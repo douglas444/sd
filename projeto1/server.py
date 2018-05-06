@@ -40,9 +40,13 @@ def delete(key):
     except KeyError:
         raise RepositoryError('Theres no data associated to this key');
 
-def log_add(s):
+def log_add(commit):
     log = open('log', 'a');
-    log.write(s + '\n');
+    if commit.operation == 'CREATE' or commit.operation == 'UPDATE':
+        s = commit.operation + str(commit.key) + '"' + commit.data + '"' + '\n';
+    else:
+        s = commit.operation + str(commit.key) + '\n';
+    log.write(s);
     log.close();
 
 def log_reexecute():
@@ -57,7 +61,6 @@ def config_server():
     port = read_port();
     s.bind((host,port));
     return s
-
 
 def read_port():
     config_file = open('server_config','r');
@@ -90,7 +93,7 @@ def commit_factory(s):
         raise ValueError('Invalid operation');
 
     #Extrai e valida "KEY"
-    data_tuple = s.split(operation)[1];
+    data_tuple = s.split(operation, 1)[1];
     if (operation == 'CREATE' or operation == 'UPDATE'):
         if data_tuple.find('"') < 0 or data_tuple.replace('"', '', 1).find('"') < 0:
             raise ValueError('Invalid key or data format');
@@ -125,7 +128,7 @@ def process_commands(server):
             command = commands.get();
             try:
                 commit = commit_factory(command[0]);
-                log_add(command[0]);
+                log_add(commit);
                 commits.put((commit, command[1]));
             except ValueError as e:
                 response = str(e);
@@ -140,7 +143,7 @@ def process_commits(server):
 
 def process(commit):
 
-    response = 'Commit successfully executed'
+    response = 'Command successfully executed'
 
     if commit.operation == 'CREATE':
         try:
