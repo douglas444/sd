@@ -2,43 +2,19 @@ import multiprocessing;
 import socket;
 import _thread;
 import queue;
+from data_base import Data_base;
+from data_base import RepositoryError;
+from commit import Commit;
 from enum import Enum;
 from sys import getsizeof;
 
-KEY_MAX_SIZE = 28;
-DATA_MAX_SIZE = 3000;
 
 commands = multiprocessing.Queue();
 commits = multiprocessing.Queue();
 
-hashmap = {};
 
-class RepositoryError(Exception):
-    pass
 
-def create(key, data):
-    if key not in hashmap:
-        hashmap[key] = data;
-    else:
-        raise RepositoryError('Key already in use');
-
-def read(key):
-    try: 
-        return hashmap[key];
-    except KeyError:
-        raise RepositoryError('Theres no data associated to this key');
-
-def update(key, data):
-    if(key in hashmap):
-        hashmap[key] = data;
-    else:
-        raise RepositoryError('Theres no data associated to this key');
-
-def delete(key):
-    try: 
-        del(hashmap[key]);
-    except KeyError:
-        raise RepositoryError('Theres no data associated to this key');
+data_base = Data_base();
 
 def log_add(commit):
     log = open('log', 'a');
@@ -52,7 +28,7 @@ def log_add(commit):
 def log_reexecute():
     log = open('log','r');
     for s in log:
-        commit = commit_factory(s);
+        commit = Commit(s);
         process(commit);
 
 def config_server():
@@ -68,66 +44,12 @@ def read_port():
     config_file.close;
     return port;
 
-class Commit(object):
-    def __init__(self, operation, key, data):
-        self.operation = operation;
-        self.key = key;
-        self.data = data;
-
-def commit_factory(s):
-
-    operation = None;
-    key = None;
-    data = None;
-
-    #Extrai e valida "OPERATION"
-    if s.replace(' ', '').find('CREATE') == 0:
-        operation = 'CREATE';
-    elif s.replace(' ', '').find('READ') == 0:
-        operation = 'READ';
-    elif s.replace(' ', '').find('UPDATE') == 0:
-        operation = 'UPDATE';
-    elif s.replace(' ', '').find('DELETE') == 0:
-        operation = 'DELETE';
-    else:
-        raise ValueError('Invalid operation');
-
-    #Extrai e valida "KEY"
-    data_tuple = s.split(operation, 1)[1];
-    if (operation == 'CREATE' or operation == 'UPDATE'):
-        if data_tuple.find('"') < 0 or data_tuple.replace('"', '', 1).find('"') < 0:
-            raise ValueError('Invalid key or data format');
-        key = data_tuple.split('"', 1)[0];
-    else:
-        key = data_tuple;
-    if not key:
-        raise ValueError('Invalid key or data format');
-    try: 
-        key = int(key);
-    except ValueError:
-        raise ValueError('Invalid key or data format');
-    if getsizeof(key) > KEY_MAX_SIZE:
-        raise ValueError('Key size is too large');
-
-    #Extrai e valida "DATA"
-    if (operation == 'CREATE' or operation == 'UPDATE'):
-        data_begin = data_tuple.find('"') + 1;
-        data_end = data_tuple.rfind('"');
-        data = data_tuple[data_begin:data_end];
-        if not data:
-            raise ValueError('Data cant be empty');
-        if getsizeof(data) > DATA_MAX_SIZE:
-            raise ValueError('Data size is too large');
-
-    #Gera e retorna objeto do tipo Commit
-    return Commit(operation, key, data);
-
 def process_commands(server):
     while True:
         if (commands.qsize() > 0):
             command = commands.get();
             try:
-                commit = commit_factory(command[0]);
+                commit = Commit(command[0]);
                 log_add(commit);
                 commits.put((commit, command[1]));
             except ValueError as e:
@@ -147,25 +69,25 @@ def process(commit):
 
     if commit.operation == 'CREATE':
         try:
-            create(commit.key, commit.data);
+            data_base.create(commit.key, commit.data);
         except RepositoryError as e:
             response = str(e);
 
     elif commit.operation == 'READ':
         try:
-            return read(commit.key);
+            return data_base.read(commit.key);
         except RepositoryError as e:
             response = str(e);
 
     elif commit.operation == 'UPDATE':
         try:
-            update(commit.key, commit.data);
+            data_base.update(commit.key, commit.data);
         except RepositoryError as e:
             response = str(e);
 
     elif commit.operation == 'DELETE':
         try:
-            delete(commit.key);
+            data_base.delete(commit.key);
         except RepositoryError as e:
             response = str(e);
 
