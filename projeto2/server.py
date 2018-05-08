@@ -28,13 +28,14 @@ class Redes3(redes3_pb2_grpc.Redes3Servicer):
     def listen(self, request, context):
         last_index = 0;
         while True:
-            while len(self.grpc_log) > last_index and self.grpc_log[last_index].key == int(request.key):
-                n = self.grpc_log[last_index]
-                last_index += 1
-                if (n.data != None):
-                    yield redes3_pb2.Log(log=str(n.operation + ' ' + n.data))
-                else:
-                    yield redes3_pb2.Log(log=str(n.operation))
+            while len(self.grpc_log) > last_index:
+                if self.grpc_log[last_index].key == int(request.key):
+                    n = self.grpc_log[last_index]
+                    last_index += 1
+                    if (n.data != None):
+                        yield redes3_pb2.Log(log=str(n.operation + ' ' + n.data))
+                    else:
+                        yield redes3_pb2.Log(log=str(n.operation))
         
         
 

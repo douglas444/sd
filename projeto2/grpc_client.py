@@ -14,7 +14,7 @@ def run():
         if (command.find('LISTEN') == 0):
             try:
                 key = int(command.split('LISTEN')[1]);
-                _thread.start_new_thread(print_logs(stub, key));
+                _thread.start_new_thread(print_logs, (stub, key));
             except ValueError:
                 print('Invalid key format');
         else:
