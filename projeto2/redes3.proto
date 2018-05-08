@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+service Redes3 {
+  rpc execute_command (Command) returns (Void) {}
+  rpc listen (ListenRequest) returns (stream Log) {}
+}
+
+message Command {
+  string command = 1;
+}
+
+message ListenRequest {
+  string key = 1;
+}
+
+message Log {
+    string log = 1;
+}
+
+message Void {}
