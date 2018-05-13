@@ -17,16 +17,35 @@ commits = multiprocessing.Queue();
 
 data_base = Data_base();
 
+class Assyncronous_responses():
+    Queues = [];
+    def __init__(self):
+        pass;
+
+    @staticmethod
+    def Create_Queue():
+        Assyncronous_responses.Queues.append(multiprocessing.Queue());
+        return len(Assyncronous_responses.Queues) - 1;
+
+    @staticmethod
+    def Get_Queue(indice):
+        try:
+            q = Assyncronous_responses.Queues[indice];
+            return q
+        except ValueError as e:
+            print("there is not a queue with that indice");
+            return e;
+
 class Redes3(redes3_pb2_grpc.Redes3Servicer):
 
     grpc_log = [];
-
     def execute_command(self, request, context):
-        commands.put((request.command, None))
-        return redes3_pb2.Void();
+        result_queue = Assyncronous_responses.Create_Queue();
+        commands.put((request.command, None, result_queue));
+        return redes3_pb2.Log(log= Assyncronous_responses.Get_Queue(result_queue).get(block=True));
 
     def listen(self, request, context):
-        last_index = 0;
+        last_index = len(self.grpc_log);
         while True:
             while len(self.grpc_log) > last_index:
                 print(last_index)
@@ -37,8 +56,8 @@ class Redes3(redes3_pb2_grpc.Redes3Servicer):
                     else:
                         yield redes3_pb2.Log(log=str(n.operation))
                 last_index += 1
-        
-        
+
+
 
 def grpc_server():
 
@@ -80,28 +99,27 @@ def read_port():
 
 def process_commands(server):
     while True:
-        if commands.qsize() > 0:
-            command = commands.get();
-            try:
-                commit = Commit(command[0]);
-                log_add(commit);
-                commits.put((commit, command[1]));
-                Redes3.grpc_log.append(commit);
-            except ValueError as e:
-                response = str(e);
-                if command[1] == None:
-                    print(response);
-                else:
-                    server.sendto(response.encode(), command[1]);
+        command = commands.get(block=True);
+        try:
+            commit = Commit(command[0]);
+            log_add(commit);
+            commits.put((commit, command[1], command[2]));
+            Redes3.grpc_log.append(commit);
+        except ValueError as e:
+            response = str(e);
+            if command[1] == None:
+                print(response);
+            else:
+                server.sendto(response.encode(), command[1]);
 
 def process_commits(server):
     while (True):
-        if(commits.qsize() > 0):
-            commit = commits.get();
-            response = process(commit[0]);
-            if commit[1] != None:
-                server.sendto(response.encode(), commit[1]);
-
+        commit = commits.get(block=True);
+        response = process(commit[0]);
+        if commit[1] != None:
+            server.sendto(response.encode(), commit[1]);
+        if commit[2] != None:
+            Assyncronous_responses.Get_Queue(commit[2]).put(response);
 def process(commit):
 
     response = 'Command successfully executed'
@@ -146,7 +164,7 @@ def main():
 
     while(True):
         value, addr = server.recvfrom(read_port());
-        commands.put((value.decode(), addr));
+        commands.put((value.decode(), addr, None));
         print('Command received from', addr);
 
 main();

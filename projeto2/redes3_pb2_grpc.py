@@ -17,7 +17,7 @@ class Redes3Stub(object):
     self.execute_command = channel.unary_unary(
         '/Redes3/execute_command',
         request_serializer=redes3__pb2.Command.SerializeToString,
-        response_deserializer=redes3__pb2.Void.FromString,
+        response_deserializer=redes3__pb2.Log.FromString,
         )
     self.listen = channel.unary_stream(
         '/Redes3/listen',
@@ -50,7 +50,7 @@ def add_Redes3Servicer_to_server(servicer, server):
       'execute_command': grpc.unary_unary_rpc_method_handler(
           servicer.execute_command,
           request_deserializer=redes3__pb2.Command.FromString,
-          response_serializer=redes3__pb2.Void.SerializeToString,
+          response_serializer=redes3__pb2.Log.SerializeToString,
       ),
       'listen': grpc.unary_stream_rpc_method_handler(
           servicer.listen,

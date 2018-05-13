@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 service Redes3 {
-  rpc execute_command (Command) returns (Void) {}
+  rpc execute_command (Command) returns (Log) {}
   rpc listen (ListenRequest) returns (stream Log) {}
 }
 

@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='redes3.proto',
   package='',
   syntax='proto3',
-  serialized_pb=_b('\n\x0credes3.proto\"\x1a\n\x07\x43ommand\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\"\x1c\n\rListenRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\"\x12\n\x03Log\x12\x0b\n\x03log\x18\x01 \x01(\t\"\x06\n\x04Void2R\n\x06Redes3\x12$\n\x0f\x65xecute_command\x12\x08.Command\x1a\x05.Void\"\x00\x12\"\n\x06listen\x12\x0e.ListenRequest\x1a\x04.Log\"\x00\x30\x01\x62\x06proto3')
+  serialized_pb=_b('\n\x0credes3.proto\"\x1a\n\x07\x43ommand\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\"\x1c\n\rListenRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\"\x12\n\x03Log\x12\x0b\n\x03log\x18\x01 \x01(\t\"\x06\n\x04Void2Q\n\x06Redes3\x12#\n\x0f\x65xecute_command\x12\x08.Command\x1a\x04.Log\"\x00\x12\"\n\x06listen\x12\x0e.ListenRequest\x1a\x04.Log\"\x00\x30\x01\x62\x06proto3')
 )
 
 
@@ -184,7 +184,7 @@ _REDES3 = _descriptor.ServiceDescriptor(
   index=0,
   options=None,
   serialized_start=102,
-  serialized_end=184,
+  serialized_end=183,
   methods=[
   _descriptor.MethodDescriptor(
     name='execute_command',
@@ -192,7 +192,7 @@ _REDES3 = _descriptor.ServiceDescriptor(
     index=0,
     containing_service=None,
     input_type=_COMMAND,
-    output_type=_VOID,
+    output_type=_LOG,
     options=None,
   ),
   _descriptor.MethodDescriptor(

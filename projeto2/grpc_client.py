@@ -17,8 +17,15 @@ def run():
                 _thread.start_new_thread(print_logs, (stub, key));
             except ValueError:
                 print('Invalid key format');
+        elif (command.find('TEST') == 0):
+            commands = open('crud_test_commands','r');
+            for command in commands:
+                response = stub.execute_command(redes3_pb2.Command(command=command));
+                sys.stdout.write('> [SERVER MESSAGE] ' + response.log + "\n");
+
         else:
-            stub.execute_command(redes3_pb2.Command(command=command));
+            response = stub.execute_command(redes3_pb2.Command(command=command));
+            sys.stdout.write('> [SERVER MESSAGE] ' + response.log + "\n");
 
 def print_logs(stub, key):
 
