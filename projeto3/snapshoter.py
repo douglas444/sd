@@ -28,6 +28,9 @@ class Snapshoter(object):
             self.saveSnapshot();
         elif(self.SnapshoterState == SnapshoterState.DELETING_LOG):
             self.deleteLog();
+            
+        while (True):
+            self.block();
 
 
     def changeSnapshoterState(self,SnapshoterState):
@@ -51,7 +54,7 @@ class Snapshoter(object):
         with open('log','w'):
             pass;
         self.changeSnapshoterState(SnapshoterState.BLOCKED);
-        self.block();
+
 
     def loadSnapshot(self):
         try:

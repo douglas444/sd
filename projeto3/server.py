@@ -191,6 +191,7 @@ def process(commit,client_addr):
 def main():
 
     server = config_server();
+
     snapshoter = Snapshoter(data_base);
     snapshoter.loadSnapshot();
     snap_state = snapshoter.getState();
