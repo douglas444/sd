@@ -7,10 +7,13 @@ from data_base import RepositoryError;
 from commit import Commit;
 from enum import Enum;
 from sys import getsizeof;
-from concurrent import futures
-import grpc
-import redes3_pb2
-import redes3_pb2_grpc
+from concurrent import futures;
+import grpc;
+import redes3_pb2;
+import redes3_pb2_grpc;
+from snapshoter import Snapshoter;
+from snapshoter import SnapshoterState;
+
 
 commands = multiprocessing.Queue();
 commits = multiprocessing.Queue();
@@ -188,12 +191,17 @@ def process(commit,client_addr):
 def main():
 
     server = config_server();
-    log_reexecute();
+    snapshoter = Snapshoter(data_base);
+    snapshoter.loadSnapshot();
+    snap_state = snapshoter.getState();
+    if(snap_state != SnapshoterState.DELETING_LOG):
+        log_reexecute();
+    _thread.start_new_thread(snapshoter.startSnapshoter,());
 
     _thread.start_new_thread(process_commands, (server,));
     _thread.start_new_thread(process_commits, (server,));
     _thread.start_new_thread(grpc_server, ());
-    _thread.start_new_thread(Listen_Udp.Send_updates, (server,)); 
+    _thread.start_new_thread(Listen_Udp.Send_updates, (server,));
 
     while(True):
         value, addr = server.recvfrom(read_port());
