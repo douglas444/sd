@@ -11,13 +11,17 @@ class SnapshoterState(Enum):
 
 class Snapshoter(object):
     def __init__(self, dataBase):
+        self.current_file = 0;
         self.dataBase = dataBase;
         try:
             State_file = open('snapshoter_state','r');
         except FileNotFoundError:
             self.SnapshoterState = SnapshoterState.BLOCKED;
+            self.current_file = 0;
         else:
-            self.SnapshoterState = SnapshoterState[State_file.read()];
+            line = State_file.read();
+            self.SnapshoterState = SnapshoterState[line.split(',')[0]];
+            self.current_file = int(line.split(',')[1]);
             State_file.close();
 
 
@@ -36,7 +40,7 @@ class Snapshoter(object):
     def changeSnapshoterState(self,SnapshoterState):
         self.SnapshoterState = SnapshoterState;
         with open('snapshoter_state','w') as SnapshoterState_file:
-            SnapshoterState_file.write(self.SnapshoterState.name);
+            SnapshoterState_file.write(self.SnapshoterState.name + "," + str(self.current_file));
 
     def block(self):
         time.sleep(60 * MINUTES_BETWEEN_SNAPSHOTS);
@@ -44,7 +48,11 @@ class Snapshoter(object):
         self.saveSnapshot();
 
     def saveSnapshot(self):
-        with open('snapshot','wb') as snap_file:
+        if (self.current_file == 0):
+            self.current_file = 1;
+        else:
+            self.current_file = 0;
+        with open('snapshot' + str(self.current_file),'wb') as snap_file:
             pickle.dump(self.dataBase.getHash(), snap_file, pickle.HIGHEST_PROTOCOL);
         self.changeSnapshoterState(SnapshoterState.DELETING_LOG);
         print("snapshot saved");
@@ -58,7 +66,7 @@ class Snapshoter(object):
 
     def loadSnapshot(self):
         try:
-            with open('snapshot','rb') as snap_file:
+            with open('snapshot' + str(self.current_file),'rb') as snap_file:
                 self.dataBase.putHash(pickle.load(snap_file));
         except FileNotFoundError:
             pass;
